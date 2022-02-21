@@ -1,14 +1,20 @@
 <template>
+    <base-dialog :show="!!isError" title="Error" @close="closeDialog">
+        <p>{{ isError }}</p>
+    </base-dialog>
     <section>
         <coach-filter @change-filter="setFilter"></coach-filter>
     </section>
     <section>
         <base-card>
             <div class="controls">
-                <base-button mode="outline">Refresh</base-button>
-                <base-button link to="/register">Register as a coach</base-button>
+                <base-button mode="outline" @click="loadCoaches(true)">Refresh</base-button>
+                <base-button v-if="!isCoach && !isLoading" link to="/register">Register as a coach</base-button>
             </div>
-            <ul v-if="hasCoaches">
+            <div v-if="isLoading">
+                <base-spinner></base-spinner>
+            </div>
+            <ul v-else-if="hasCoaches">
                 <!-- <li v-for="coach in filterCoaches" :key="coach.id">{{coach.firstName}}</li> -->
                 <coach-item
                 v-for="coach in filterCoaches"
@@ -36,6 +42,8 @@ export default {
     },
     data(){
         return{
+            isLoading: false,
+            isError: null,
             activeFilters: {
                 frontend: true,
                 backend: true,
@@ -47,8 +55,24 @@ export default {
         setFilter(updatedFilter){
             this.activeFilters = updatedFilter;
         },
+        async loadCoaches(refresh = false){
+            this.isLoading = true;
+            try{
+                await this.$store.dispatch('coachModule/loadCoaches', {forceRefresh: refresh});
+            }
+            catch(err){
+                this.isError = err.message || 'Something went wrong!';
+            }
+            this.isLoading = false;
+        },
+        closeDialog(){
+            this.isError = null;
+        },
     },
     computed: {
+        isCoach(){
+            return this.$store.getters['coachModule/isCoach'];
+        },
         filterCoaches(){
             const coaches = this.$store.getters['coachModule/coaches'];
             return coaches.filter(coach => {
@@ -65,8 +89,11 @@ export default {
             });
         },
         hasCoaches(){
-            return this.$store.getters['coachModule/hasCoaches'];
+            return !this.isLoading && this.$store.getters['coachModule/hasCoaches'];
         },
+    },
+    created() {
+        this.loadCoaches();
     },
 }
 </script>
